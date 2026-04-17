@@ -51,7 +51,9 @@
   }
   .header-icon { font-size: 24px; }
   .header-title { font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
-  .header-sub { font-size: 11px; color: #aaa; margin-left: auto; }
+  .header-sub { font-size: 11px; color: #aaa; }
+  .header-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .save-indicator { font-size: 11px; color: #aaa; opacity: 0.5; transition: opacity 0.5s; white-space: nowrap; }
 
   /* STEPS */
   .steps-bar {
@@ -406,6 +408,11 @@
   <div class="header-icon">🏮</div>
   <div class="header-title">行事担当表メーカー</div>
   <div class="header-sub">子供会・育成会向け</div>
+  <div class="header-actions">
+    <span class="save-indicator" id="saveIndicator"></span>
+    <button class="btn btn-secondary btn-sm" onclick="saveState()">💾 保存</button>
+    <button class="btn btn-secondary btn-sm" onclick="clearAndRestart()" style="color:#c44;">🗑 リセット</button>
+  </div>
 </div>
 
 <div class="steps-bar">
@@ -570,6 +577,47 @@ const WISH_MAP = {
 const HAN_COLORS = { '1班':'han-1','2班':'han-2','3班':'han-3','4班':'han-4','5班':'han-5' };
 
 // ============================================================
+// SAVE / RESTORE (localStorage)
+// ============================================================
+const SAVE_KEY = 'kodomokaiapp_v1';
+
+function saveState() {
+  const state = { members, events, assignments, currentStep, savedAt: new Date().toISOString() };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  showSaveIndicator();
+}
+
+function showSaveIndicator() {
+  const el = document.getElementById('saveIndicator');
+  el.textContent = '保存済み ' + new Date().toLocaleTimeString('ja-JP');
+  el.style.opacity = '1';
+  setTimeout(() => { el.style.opacity = '0.5'; }, 2500);
+}
+
+function clearAndRestart() {
+  if (!confirm('作業データをすべて削除してリセットしますか？')) return;
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+}
+
+function tryRestoreState() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return;
+  let state;
+  try { state = JSON.parse(raw); } catch (e) { return; }
+  if (!state.members || state.members.length === 0) return;
+  const savedAt = new Date(state.savedAt).toLocaleString('ja-JP');
+  if (!confirm(`前回の作業データが見つかりました。\n保存日時: ${savedAt}\n\n復元しますか？`)) return;
+  members = state.members;
+  events = state.events;
+  assignments = state.assignments;
+  renderStep1();
+  document.getElementById('step1Result').classList.remove('hidden');
+  goStep(state.currentStep || 1);
+  showSaveIndicator();
+}
+
+// ============================================================
 // STEP NAV
 // ============================================================
 function goStep(n) {
@@ -622,6 +670,7 @@ function processFile(file) {
 
     renderStep1();
     document.getElementById('step1Result').classList.remove('hidden');
+    saveState();
   };
   reader.readAsArrayBuffer(file);
 }
@@ -716,27 +765,29 @@ function renderEventsGrid() {
 
 function updateEventName(id, val) {
   const ev = events.find(e => e.id === id);
-  if (ev) ev.name = val.trim();
+  if (ev) { ev.name = val.trim(); saveState(); }
 }
 function updateEventDate(id, val) {
   const ev = events.find(e => e.id === id);
-  if (ev) ev.date = val;
+  if (ev) { ev.date = val; saveState(); }
 }
 function updateEventNeeded(id, val) {
   const ev = events.find(e => e.id === id);
-  if (ev) ev.needed = parseInt(val) || 1;
+  if (ev) { ev.needed = parseInt(val) || 1; saveState(); }
 }
 function removeEvent(id) {
   if (!confirm('この行事を削除しますか？')) return;
   events = events.filter(e => e.id !== id);
   delete assignments[id];
   renderEventsGrid();
+  saveState();
 }
 function addEvent() {
   const id = 'ev_' + Date.now();
   events.push({ id, name: '新しい行事', date: '', needed: 4 });
   assignments[id] = [];
   renderEventsGrid();
+  saveState();
 }
 
 // ============================================================
@@ -920,12 +971,14 @@ function doAssign(name, evId) {
   dragName = null;
   renderEvents();
   renderPool();
+  saveState();
 }
 
 function removeAssignment(evId, name) {
   assignments[evId] = (assignments[evId] || []).filter(a => a.name !== name);
   renderEvents();
   renderPool();
+  saveState();
 }
 
 // ============================================================
@@ -1035,6 +1088,11 @@ function downloadExcel() {
 
   XLSX.writeFile(wb, `行事担当表_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.xlsx`);
 }
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', tryRestoreState);
 </script>
 </body>
 </html>
