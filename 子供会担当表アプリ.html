@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行事担当表メーカー</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Sans:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface2: #F0EDE6;
+    --border: #DDD9D0;
+    --text: #2A2420;
+    --text-sub: #7A736A;
+    --accent: #D4622A;
+    --accent2: #E8A87C;
+    --green: #3A7D44;
+    --green-light: #EAF4EC;
+    --yellow: #C9960C;
+    --yellow-light: #FEF7E0;
+    --shadow: 0 2px 12px rgba(42,36,32,0.08);
+    --shadow-lg: 0 8px 32px rgba(42,36,32,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--text);
+    color: white;
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .header-icon { font-size: 24px; }
+  .header-title { font-size: 18px; font-weight: 700; letter-spacing: 0.02em; }
+  .header-sub { font-size: 11px; color: #aaa; margin-left: auto; }
+
+  /* STEPS */
+  .steps-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    display: flex;
+    gap: 0;
+  }
+  .step-tab {
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-sub);
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .step-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .step-tab.done { color: var(--green); }
+  .step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--surface2);
+    font-size: 11px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-tab.active .step-num { background: var(--accent); color: white; }
+  .step-tab.done .step-num { background: var(--green); color: white; }
+
+  /* MAIN */
+  .main { padding: 28px; max-width: 1200px; margin: 0 auto; }
+
+  /* PANELS */
+  .panel {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .panel-title {
+    font-size: 15px; font-weight: 700;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-title .icon { font-size: 18px; }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: #FDF4EF;
+  }
+  .upload-zone .upload-icon { font-size: 40px; margin-bottom: 12px; }
+  .upload-zone .upload-text { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+  .upload-zone .upload-hint { font-size: 12px; color: var(--text-sub); }
+  #fileInput { display: none; }
+
+  /* BUTTON */
+  .btn {
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: #BA5222; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(212,98,42,0.35); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-green { background: var(--green); color: white; }
+  .btn-green:hover { background: #2d6235; transform: translateY(-1px); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+  /* BADGE */
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-yellow { background: var(--yellow-light); color: var(--yellow); }
+  .badge-orange { background: #FEF0E7; color: var(--accent); }
+  .badge-gray { background: var(--surface2); color: var(--text-sub); }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    background: var(--text);
+    color: white;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:hover td { background: var(--surface2); }
+  .han-1 { background: #FFFBE6 !important; }
+  .han-2 { background: #EFF8F0 !important; }
+  .han-3 { background: #FEF3EE !important; }
+  .han-4 { background: #EEF6FB !important; }
+  .han-5 { background: #F8EEF6 !important; }
+
+  /* EVENTS SETUP */
+  .events-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .event-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    background: var(--surface2);
+  }
+  .event-card-name {
+    font-size: 13px; font-weight: 600; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .event-card label { font-size: 12px; color: var(--text-sub); display: block; margin-bottom: 4px; }
+  .event-card input[type=number] {
+    width: 70px; padding: 5px 8px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: inherit; font-size: 13px;
+    background: white;
+  }
+  .event-card input[type=text] {
+    width: 100%; padding: 5px 8px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: inherit; font-size: 12px;
+    background: white; margin-bottom: 8px;
+  }
+
+  /* ASSIGNMENT BOARD */
+  .assignment-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .member-pool {
+    position: sticky;
+    top: 80px;
+  }
+  .member-pool-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .member-chip {
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: white;
+    font-size: 12px;
+    cursor: grab;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+  .member-chip:hover { box-shadow: var(--shadow); transform: translateX(2px); }
+  .member-chip.dragging { opacity: 0.4; }
+  .member-chip.assigned { opacity: 0.4; cursor: not-allowed; background: var(--surface2); }
+  .member-chip .wish-badge { font-size: 10px; margin-left: auto; }
+
+  .events-board { display: flex; flex-direction: column; gap: 12px; }
+  .event-slot {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: white;
+    overflow: hidden;
+  }
+  .event-slot-header {
+    padding: 12px 16px;
+    background: var(--text);
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .event-slot-name { font-size: 13px; font-weight: 600; }
+  .event-slot-date { font-size: 11px; color: #aaa; margin-left: auto; }
+  .slot-count {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.15);
+  }
+  .slot-count.full { background: #3A7D44; }
+  .event-slot-body {
+    padding: 12px 16px;
+    min-height: 60px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    border: 2px dashed transparent;
+    transition: all 0.15s;
+  }
+  .event-slot-body.drag-target {
+    border-color: var(--accent);
+    background: #FDF4EF;
+  }
+  .assigned-chip {
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--green-light);
+    border: 1px solid #B8DFC0;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--green);
+    display: flex; align-items: center; gap: 5px;
+    cursor: default;
+  }
+  .assigned-chip.wish1 { background: var(--green-light); border-color: #B8DFC0; color: var(--green); }
+  .assigned-chip.wish2 { background: var(--yellow-light); border-color: #F0D070; color: var(--yellow); }
+  .assigned-chip.manual { background: #EEF2FF; border-color: #C7D2FE; color: #4338CA; }
+  .assigned-chip .remove-btn {
+    cursor: pointer; font-size: 14px; line-height: 1;
+    color: currentColor; opacity: 0.6;
+    background: none; border: none; padding: 0;
+    font-family: inherit;
+  }
+  .assigned-chip .remove-btn:hover { opacity: 1; }
+  .slot-empty-hint { color: var(--text-sub); font-size: 12px; font-style: italic; align-self: center; }
+
+  /* RESULT TABLE */
+  .result-grid { overflow-x: auto; }
+  .result-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .result-table th {
+    background: #2A2420;
+    color: white;
+    padding: 10px 10px;
+    text-align: center;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .result-table td {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    text-align: center;
+    vertical-align: middle;
+  }
+  .result-cell-assigned {
+    background: var(--green-light);
+    color: var(--green);
+    font-weight: 600;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* ALERT */
+  .alert {
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .alert-info { background: #EEF6FB; color: #0F5FA6; border: 1px solid #BDD7EE; }
+  .alert-success { background: var(--green-light); color: var(--green); border: 1px solid #B8DFC0; }
+  .alert-warn { background: var(--yellow-light); color: var(--yellow); border: 1px solid #F0D070; }
+
+  /* PROGRESS BAR */
+  .progress-bar-wrap { background: var(--surface2); border-radius: 20px; height: 8px; margin-top: 6px; }
+  .progress-bar { height: 8px; border-radius: 20px; background: var(--green); transition: width 0.3s; }
+
+  /* SEARCH */
+  .search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13px;
+    margin-bottom: 10px;
+    background: white;
+  }
+
+  /* FILTER CHIPS */
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .filter-chip {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: white;
+    transition: all 0.15s;
+  }
+  .filter-chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .hidden { display: none !important; }
+
+  /* SUMMARY STATS */
+  .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  .stat-card {
+    flex: 1; min-width: 120px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .stat-num { font-size: 28px; font-weight: 700; color: var(--accent); font-family: 'DM Sans', sans-serif; }
+  .stat-label { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface2); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">🏮</div>
+  <div class="header-title">行事担当表メーカー</div>
+  <div class="header-sub">子供会・育成会向け</div>
+</div>
+
+<div class="steps-bar">
+  <div class="step-tab active" id="tab1" onclick="goStep(1)">
+    <span class="step-num">1</span>アンケート読み込み
+  </div>
+  <div class="step-tab" id="tab2" onclick="goStep(2)">
+    <span class="step-num">2</span>行事・人数の設定
+  </div>
+  <div class="step-tab" id="tab3" onclick="goStep(3)">
+    <span class="step-num">3</span>担当者の割り当て
+  </div>
+  <div class="step-tab" id="tab4" onclick="goStep(4)">
+    <span class="step-num">4</span>確認・ダウンロード
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- STEP 1 -->
+  <div id="step1">
+    <div class="panel">
+      <div class="panel-title"><span class="icon">📂</span>アンケート結果ファイルを読み込む</div>
+      <div class="alert alert-info">
+        💡 Googleフォームのアンケート結果をExcel(.xlsx)でダウンロードしてアップロードしてください。
+      </div>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">📊</div>
+        <div class="upload-text">クリックまたはドラッグ＆ドロップでファイルを選択</div>
+        <div class="upload-hint">対応形式：Excel (.xlsx, .xls)</div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadFile(this)">
+    </div>
+
+    <div id="step1Result" class="hidden">
+      <div class="stats-row" id="statsRow"></div>
+      <div class="panel">
+        <div class="panel-title" style="justify-content: space-between;">
+          <span><span class="icon">👥</span>回答一覧</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input class="search-input" style="width:180px;margin:0;" placeholder="🔍 名前で検索..." oninput="filterMembers(this.value)">
+            <button class="btn btn-primary" onclick="goStep(2)">次へ：行事を設定 →</button>
+          </div>
+        </div>
+        <div class="filter-row" id="hanFilters"></div>
+        <div class="table-wrap">
+          <table id="memberTable">
+            <thead>
+              <tr>
+                <th>班</th><th>氏名</th><th>第1希望</th><th>第2希望</th><th>他にできそう</th><th>2つ以上</th>
+              </tr>
+            </thead>
+            <tbody id="memberTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div id="step2" class="hidden">
+    <div class="panel">
+      <div class="panel-title" style="justify-content: space-between;">
+        <span><span class="icon">📅</span>行事と必要人数を設定</span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="addEvent()">＋ 行事を追加</button>
+          <button class="btn btn-primary" onclick="goStep(3)">次へ：割り当て →</button>
+        </div>
+      </div>
+      <div class="alert alert-info">
+        💡 各行事の名前・日程・必要人数を確認・修正してください。行事の追加・削除もできます。
+      </div>
+      <div class="events-grid" id="eventsGrid"></div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div id="step3" class="hidden">
+    <div class="panel" style="padding:16px 24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div class="panel-title" style="margin-bottom:4px;"><span class="icon">🎯</span>担当者の割り当て</div>
+          <div style="font-size:12px;color:var(--text-sub);">左の名前を右の行事にドラッグ、またはクリックして割り当てます。</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="badge badge-green">◎ 第1希望</span>
+          <span class="badge badge-yellow">○ 第2希望</span>
+          <span class="badge" style="background:#EEF2FF;color:#4338CA;">✏ 手動追加</span>
+          <button class="btn btn-primary" onclick="goStep(4)">次へ：確認・DL →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="assignment-layout">
+      <!-- LEFT: member pool -->
+      <div class="member-pool">
+        <div class="panel" style="padding:16px;">
+          <div class="panel-title"><span class="icon">👥</span>メンバー一覧</div>
+          <input class="search-input" placeholder="🔍 検索..." oninput="filterPool(this.value)">
+          <div class="filter-row" id="poolFilters"></div>
+          <div class="member-pool-list" id="memberPoolList"></div>
+        </div>
+      </div>
+      <!-- RIGHT: events -->
+      <div class="events-board" id="eventsBoard"></div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div id="step4" class="hidden">
+    <div class="panel">
+      <div class="panel-title" style="justify-content:space-between;">
+        <span><span class="icon">✅</span>担当表の確認</span>
+        <button class="btn btn-green" onclick="downloadExcel()">📥 Excelでダウンロード</button>
+      </div>
+      <div id="step4Warnings"></div>
+      <div class="result-grid">
+        <table class="result-table" id="resultTable"></table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let members = []; // { name, han, wish1, wish2, other, twoOk, comment }
+let events = [];  // { id, name, date, needed }
+let assignments = {}; // { eventId: [{ name, type: 'wish1'|'wish2'|'manual' }] }
+let currentStep = 1;
+let dragName = null;
+let filterHan = 'all';
+
+// Default events from the template
+const DEFAULT_EVENTS = [
+  { name: '下山祭', date: '6/1(日)' },
+  { name: '夏祭り（子ども神輿）', date: '8/23(土)' },
+  { name: '夏祭り（余興）', date: '8/23(土)' },
+  { name: '夏祭り（飲み物販売）', date: '8/23(土)' },
+  { name: '夏祭り（事前準備）', date: '8/23(土)' },
+  { name: '葉山体操', date: '8/25〜29' },
+  { name: '若葉祭', date: '9/28(日)' },
+  { name: 'ハロウィン', date: '10/31(金)' },
+  { name: 'ドッヂボール大会', date: '11月' },
+];
+
+// アンケート行事名→defaultイベントのマッピング
+const WISH_MAP = {
+  '下山祭（6/7）': '下山祭',
+  '神明社夏祭り（子ども神輿）': '夏祭り（子ども神輿）',
+  '神明社夏祭り（宵宮・余興）': '夏祭り（余興）',
+  '神明社夏祭り（宵宮・飲み物販売）': '夏祭り（飲み物販売）',
+  '神明社夏祭り（宵宮・事前準備）': '夏祭り（事前準備）',
+  '葉山体操（8/24~8/29)': '葉山体操',
+  '若葉祭': '若葉祭',
+  'ハロウィン': 'ハロウィン',
+  'ドッヂボール大会': 'ドッヂボール大会',
+};
+
+const HAN_COLORS = { '1班':'han-1','2班':'han-2','3班':'han-3','4班':'han-4','5班':'han-5' };
+
+// ============================================================
+// STEP NAV
+// ============================================================
+function goStep(n) {
+  if (n > 1 && members.length === 0) { alert('先にファイルを読み込んでください'); return; }
+  if (n >= 2 && events.length === 0) initEvents();
+  if (n >= 3) renderBoard();
+  if (n >= 4) renderResult();
+  currentStep = n;
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('step'+i).classList.toggle('hidden', i !== n);
+    const tab = document.getElementById('tab'+i);
+    tab.classList.remove('active','done');
+    if (i === n) tab.classList.add('active');
+    else if (i < n) tab.classList.add('done');
+  }
+}
+
+// ============================================================
+// FILE LOAD
+// ============================================================
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+
+function loadFile(input) {
+  if (input.files[0]) processFile(input.files[0]);
+}
+
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    members = rows.map(r => ({
+      name: String(r['育成会員のお名前'] || r['名前'] || r['氏名'] || '').trim(),
+      han: String(r['班'] || '').trim(),
+      wish1: String(r['第1希望'] || r['第１希望'] || '').trim(),
+      wish2: String(r['第２希望'] || r['第2希望'] || '').trim(),
+      other: String(r['他にできそうな行事'] || '').trim(),
+      twoOk: String(r['2つの以上お手伝い'] || '').includes('可'),
+      comment: String(r['（お問い合わせ）ご質問やコメント'] || r['コメント'] || '').trim(),
+    })).filter(m => m.name);
+
+    renderStep1();
+    document.getElementById('step1Result').classList.remove('hidden');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderStep1() {
+  // Stats
+  const hanSet = [...new Set(members.map(m => m.han).filter(Boolean))].sort();
+  const statsRow = document.getElementById('statsRow');
+  statsRow.innerHTML = `
+    <div class="stat-card"><div class="stat-num">${members.length}</div><div class="stat-label">回答者数</div></div>
+    <div class="stat-card"><div class="stat-num">${hanSet.length}</div><div class="stat-label">参加班数</div></div>
+    <div class="stat-card"><div class="stat-num">${members.filter(m=>m.twoOk).length}</div><div class="stat-label">2つ以上OK</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--yellow)">${countTopWish()}</div><div class="stat-label">最多希望行事</div></div>
+  `;
+
+  // Han filters
+  const filtersEl = document.getElementById('hanFilters');
+  filtersEl.innerHTML = `<div class="filter-chip active" onclick="setHanFilter('all',this)">全員</div>`
+    + hanSet.map(h => `<div class="filter-chip" onclick="setHanFilter('${h}',this)">${h}</div>`).join('');
+
+  renderMemberTable(members);
+}
+
+function countTopWish() {
+  const counts = {};
+  members.forEach(m => { counts[m.wish1] = (counts[m.wish1]||0) + 1; });
+  const max = Math.max(...Object.values(counts));
+  const top = Object.entries(counts).find(([,v])=>v===max);
+  return top ? top[0].replace('神明社夏祭り（宵宮・','夏祭り(').replace('（','(').replace('）',')').split('（')[0] : '-';
+}
+
+function setHanFilter(han, el) {
+  filterHan = han;
+  document.querySelectorAll('#hanFilters .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const filtered = han === 'all' ? members : members.filter(m => m.han === han);
+  renderMemberTable(filtered);
+}
+
+function filterMembers(q) {
+  const filtered = members.filter(m =>
+    m.name.includes(q) && (filterHan === 'all' || m.han === filterHan)
+  );
+  renderMemberTable(filtered);
+}
+
+function renderMemberTable(list) {
+  const tbody = document.getElementById('memberTbody');
+  tbody.innerHTML = list.map(m => `
+    <tr>
+      <td class="${HAN_COLORS[m.han]||''}">${m.han}</td>
+      <td>${m.name}</td>
+      <td><span class="badge badge-green">${m.wish1 || '—'}</span></td>
+      <td><span class="badge badge-yellow">${m.wish2 || '—'}</span></td>
+      <td>${m.other ? `<span class="badge badge-orange">${m.other}</span>` : '—'}</td>
+      <td>${m.twoOk ? '<span class="badge badge-green">可</span>' : '<span class="badge badge-gray">不可</span>'}</td>
+    </tr>
+  `).join('');
+}
+
+// ============================================================
+// STEP 2: EVENTS
+// ============================================================
+function initEvents() {
+  if (events.length > 0) return;
+  events = DEFAULT_EVENTS.map((e, i) => ({
+    id: 'ev' + i,
+    name: e.name,
+    date: e.date,
+    needed: 4,
+  }));
+  assignments = {};
+  events.forEach(e => assignments[e.id] = []);
+  renderEventsGrid();
+}
+
+function renderEventsGrid() {
+  const grid = document.getElementById('eventsGrid');
+  grid.innerHTML = events.map((ev, i) => `
+    <div class="event-card" id="ecard_${ev.id}">
+      <div class="event-card-name">
+        🏮 <span contenteditable="true" onblur="updateEventName('${ev.id}',this.textContent)">${ev.name}</span>
+        <button onclick="removeEvent('${ev.id}')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text-sub);font-size:16px;" title="削除">✕</button>
+      </div>
+      <label>日程</label>
+      <input type="text" value="${ev.date}" onchange="updateEventDate('${ev.id}',this.value)" placeholder="例: 6/1(日)">
+      <label>必要人数</label>
+      <input type="number" value="${ev.needed}" min="1" max="20" onchange="updateEventNeeded('${ev.id}',this.value)">
+    </div>
+  `).join('');
+}
+
+function updateEventName(id, val) {
+  const ev = events.find(e => e.id === id);
+  if (ev) ev.name = val.trim();
+}
+function updateEventDate(id, val) {
+  const ev = events.find(e => e.id === id);
+  if (ev) ev.date = val;
+}
+function updateEventNeeded(id, val) {
+  const ev = events.find(e => e.id === id);
+  if (ev) ev.needed = parseInt(val) || 1;
+}
+function removeEvent(id) {
+  if (!confirm('この行事を削除しますか？')) return;
+  events = events.filter(e => e.id !== id);
+  delete assignments[id];
+  renderEventsGrid();
+}
+function addEvent() {
+  const id = 'ev_' + Date.now();
+  events.push({ id, name: '新しい行事', date: '', needed: 4 });
+  assignments[id] = [];
+  renderEventsGrid();
+}
+
+// ============================================================
+// STEP 3: ASSIGNMENT BOARD
+// ============================================================
+function renderBoard() {
+  renderPool();
+  renderEvents();
+  renderPoolFilters();
+}
+
+function renderPoolFilters() {
+  const hanSet = [...new Set(members.map(m => m.han).filter(Boolean))].sort();
+  const el = document.getElementById('poolFilters');
+  el.innerHTML = `<div class="filter-chip active" onclick="setPoolFilter('all',this)">全員</div>`
+    + hanSet.map(h => `<div class="filter-chip" onclick="setPoolFilter('${h}',this)">${h}</div>`).join('');
+}
+
+let poolFilterHan = 'all';
+function setPoolFilter(han, el) {
+  poolFilterHan = han;
+  document.querySelectorAll('#poolFilters .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderPool();
+}
+
+function filterPool(q) {
+  renderPool(q);
+}
+
+function getAssignedNames() {
+  const assigned = new Set();
+  Object.values(assignments).forEach(arr => arr.forEach(a => assigned.add(a.name)));
+  return assigned;
+}
+
+function renderPool(search = '') {
+  const assigned = getAssignedNames();
+  const el = document.getElementById('memberPoolList');
+  const list = members.filter(m =>
+    (poolFilterHan === 'all' || m.han === poolFilterHan) &&
+    m.name.includes(search)
+  );
+  el.innerHTML = list.map(m => {
+    const isAssigned = assigned.has(m.name);
+    const w1 = WISH_MAP[m.wish1] || m.wish1;
+    const w2 = WISH_MAP[m.wish2] || m.wish2;
+    return `
+      <div class="member-chip ${isAssigned ? 'assigned' : ''} ${HAN_COLORS[m.han]||''}"
+           id="chip_${m.name.replace(/\s/g,'_')}"
+           draggable="${!isAssigned}"
+           ondragstart="onDragStart(event,'${m.name}')"
+           onclick="onChipClick('${m.name}')">
+        <span style="font-size:11px;color:var(--text-sub)">${m.han}</span>
+        <span style="font-weight:600">${m.name}</span>
+        <span class="wish-badge">
+          ${m.wish1 ? `<span class="badge badge-green" style="font-size:9px">◎</span>` : ''}
+          ${m.wish2 ? `<span class="badge badge-yellow" style="font-size:9px">○</span>` : ''}
+        </span>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderEvents() {
+  const board = document.getElementById('eventsBoard');
+  board.innerHTML = events.map(ev => {
+    const assigned = assignments[ev.id] || [];
+    const isFull = assigned.length >= ev.needed;
+    const progressPct = Math.min(100, (assigned.length / ev.needed) * 100);
+    return `
+      <div class="event-slot" id="slot_${ev.id}">
+        <div class="event-slot-header">
+          <div class="event-slot-name">🏮 ${ev.name}</div>
+          <div class="event-slot-date">${ev.date}</div>
+          <div class="slot-count ${isFull ? 'full' : ''}">
+            ${assigned.length} / ${ev.needed}人
+          </div>
+        </div>
+        <div style="padding:6px 16px 2px;background:#111">
+          <div class="progress-bar-wrap" style="background:rgba(255,255,255,0.15)">
+            <div class="progress-bar" style="width:${progressPct}%;background:${isFull ? '#3A7D44' : '#D4622A'}"></div>
+          </div>
+        </div>
+        <div class="event-slot-body"
+             id="body_${ev.id}"
+             ondragover="e => e.preventDefault()"
+             ondrop="onDrop(event,'${ev.id}')"
+             onmouseenter="setDropTarget('${ev.id}',true)"
+             onmouseleave="setDropTarget('${ev.id}',false)">
+          ${assigned.length === 0 ? '<span class="slot-empty-hint">← ここにドラッグして追加</span>' : ''}
+          ${assigned.map(a => `
+            <div class="assigned-chip ${a.type}">
+              ${a.name}
+              <span class="wish-badge" style="font-size:9px">${a.type === 'wish1' ? '◎' : a.type === 'wish2' ? '○' : '✏'}</span>
+              <button class="remove-btn" onclick="removeAssignment('${ev.id}','${a.name}')">✕</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Fix drag events
+  document.querySelectorAll('.event-slot-body').forEach(body => {
+    body.addEventListener('dragover', e => e.preventDefault());
+    body.addEventListener('drop', e => {
+      e.preventDefault();
+      const evId = body.id.replace('body_', '');
+      doAssign(dragName, evId);
+    });
+  });
+}
+
+function onDragStart(e, name) {
+  dragName = name;
+  e.dataTransfer.setData('text/plain', name);
+  setTimeout(() => {
+    const chip = document.getElementById('chip_' + name.replace(/\s/g,'_'));
+    if (chip) chip.classList.add('dragging');
+  }, 0);
+}
+
+function setDropTarget(evId, active) {
+  const body = document.getElementById('body_' + evId);
+  if (body) body.classList.toggle('drag-target', active);
+}
+
+// Click to assign: show event picker
+let clickAssignName = null;
+function onChipClick(name) {
+  const assigned = getAssignedNames();
+  if (assigned.has(name)) return;
+  clickAssignName = name;
+  const mem = members.find(m => m.name === name);
+  const w1 = WISH_MAP[mem?.wish1] || mem?.wish1;
+  const w2 = WISH_MAP[mem?.wish2] || mem?.wish2;
+
+  const options = events.map(ev => {
+    const evAssigned = assignments[ev.id] || [];
+    const isFull = evAssigned.length >= ev.needed;
+    let hint = '';
+    if (ev.name === w1) hint = ' ◎第1希望';
+    else if (ev.name === w2) hint = ' ○第2希望';
+    return `<option value="${ev.id}" ${isFull ? 'disabled' : ''}>${ev.name}${hint}${isFull ? '（満員）' : ''}</option>`;
+  }).join('');
+
+  // Simple prompt
+  const evId = prompt(`【${name}】さんをどの行事に割り当てますか？\n\n` +
+    events.map((ev, i) => {
+      const evAssigned = assignments[ev.id] || [];
+      let hint = '';
+      const w1n = WISH_MAP[mem?.wish1]; const w2n = WISH_MAP[mem?.wish2];
+      if (ev.name === w1n) hint = ' ←◎第1希望';
+      else if (ev.name === w2n) hint = ' ←○第2希望';
+      return `${i + 1}. ${ev.name} (${evAssigned.length}/${ev.needed}人)${hint}`;
+    }).join('\n') +
+    `\n\n番号を入力してください（1〜${events.length}）`
+  );
+  if (!evId) return;
+  const idx = parseInt(evId) - 1;
+  if (idx >= 0 && idx < events.length) {
+    doAssign(name, events[idx].id);
+  }
+}
+
+function doAssign(name, evId) {
+  if (!name || !evId) return;
+  const assigned = getAssignedNames();
+  if (assigned.has(name)) { alert(`${name}さんはすでに割り当て済みです`); return; }
+  const ev = events.find(e => e.id === evId);
+  if (!ev) return;
+  const mem = members.find(m => m.name === name);
+  const w1n = WISH_MAP[mem?.wish1] || '';
+  const w2n = WISH_MAP[mem?.wish2] || '';
+  let type = 'manual';
+  if (ev.name === w1n) type = 'wish1';
+  else if (ev.name === w2n) type = 'wish2';
+  if (!assignments[evId]) assignments[evId] = [];
+  assignments[evId].push({ name, type });
+  dragName = null;
+  renderEvents();
+  renderPool();
+}
+
+function removeAssignment(evId, name) {
+  assignments[evId] = (assignments[evId] || []).filter(a => a.name !== name);
+  renderEvents();
+  renderPool();
+}
+
+// ============================================================
+// STEP 4: RESULT
+// ============================================================
+function renderResult() {
+  const table = document.getElementById('resultTable');
+  const warnings = document.getElementById('step4Warnings');
+  let warns = [];
+
+  // Check unfilled
+  events.forEach(ev => {
+    const count = (assignments[ev.id] || []).length;
+    if (count < ev.needed) warns.push(`「${ev.name}」があと ${ev.needed - count} 人不足`);
+  });
+  const unassigned = members.filter(m => !getAssignedNames().has(m.name));
+  if (unassigned.length > 0) warns.push(`未割り当てメンバー：${unassigned.map(m=>m.name).join('、')}`);
+
+  warnings.innerHTML = warns.map(w => `<div class="alert alert-warn">⚠️ ${w}</div>`).join('');
+
+  // Build matrix
+  const allNames = members.map(m => m.name);
+  let html = '<thead><tr><th>班</th><th>氏名</th>';
+  events.forEach(ev => html += `<th>${ev.name}<br><span style="font-weight:400;font-size:10px">${ev.date}</span></th>`);
+  html += '</tr></thead><tbody>';
+
+  const sorted = [...members].sort((a, b) => a.han.localeCompare(b.han));
+  sorted.forEach(m => {
+    html += `<tr><td class="${HAN_COLORS[m.han]||''}">${m.han}</td><td style="text-align:left;white-space:nowrap">${m.name}</td>`;
+    events.forEach(ev => {
+      const a = (assignments[ev.id] || []).find(x => x.name === m.name);
+      if (a) {
+        const icon = a.type === 'wish1' ? '◎' : a.type === 'wish2' ? '○' : '✏';
+        html += `<td class="result-cell-assigned">${icon}</td>`;
+      } else {
+        html += '<td></td>';
+      }
+    });
+    html += '</tr>';
+  });
+
+  // Total row
+  html += '<tr style="background:var(--surface2)"><td colspan="2" style="text-align:center;font-weight:700">人数</td>';
+  events.forEach(ev => {
+    const cnt = (assignments[ev.id] || []).length;
+    html += `<td style="font-weight:700;text-align:center">${cnt}</td>`;
+  });
+  html += '</tr></tbody>';
+  table.innerHTML = html;
+}
+
+// ============================================================
+// EXCEL DOWNLOAD
+// ============================================================
+function downloadExcel() {
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: 担当表（行事×人）
+  const headers = ['班', '氏名', ...events.map(e => `${e.name}\n${e.date}`)];
+  const rows = [headers];
+  const sorted = [...members].sort((a, b) => a.han.localeCompare(b.han));
+  sorted.forEach(m => {
+    const row = [m.han, m.name];
+    events.forEach(ev => {
+      const a = (assignments[ev.id] || []).find(x => x.name === m.name);
+      row.push(a ? (a.type === 'wish1' ? '◎' : a.type === 'wish2' ? '○' : '✏') : '');
+    });
+    rows.push(row);
+  });
+  // Total
+  const totalRow = ['', '人数'];
+  events.forEach(ev => totalRow.push((assignments[ev.id]||[]).length));
+  rows.push(totalRow);
+
+  const ws1 = XLSX.utils.aoa_to_sheet(rows);
+  ws1['!cols'] = [{ wch: 6 }, { wch: 14 }, ...events.map(() => ({ wch: 14 }))];
+  XLSX.utils.book_append_sheet(wb, ws1, '担当表');
+
+  // Sheet 2: 行事別担当者リスト
+  const rows2 = [['行事', '日程', '必要人数', '担当者', '希望区分']];
+  events.forEach(ev => {
+    const asgn = assignments[ev.id] || [];
+    if (asgn.length === 0) {
+      rows2.push([ev.name, ev.date, ev.needed, '（未定）', '']);
+    } else {
+      asgn.forEach((a, i) => {
+        rows2.push([
+          i === 0 ? ev.name : '',
+          i === 0 ? ev.date : '',
+          i === 0 ? ev.needed : '',
+          a.name,
+          a.type === 'wish1' ? '第1希望' : a.type === 'wish2' ? '第2希望' : '手動割り当て',
+        ]);
+      });
+    }
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(rows2);
+  ws2['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 8 }, { wch: 14 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, ws2, '行事別担当者');
+
+  // Sheet 3: 回答サマリー
+  const rows3 = [['班', '氏名', '第1希望', '第2希望', '他にできそう', '2つ以上', 'コメント']];
+  sorted.forEach(m => rows3.push([m.han, m.name, m.wish1, m.wish2, m.other, m.twoOk ? '可' : '不可', m.comment]));
+  const ws3 = XLSX.utils.aoa_to_sheet(rows3);
+  ws3['!cols'] = [{ wch: 6 }, { wch: 14 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 8 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, ws3, 'アンケート回答');
+
+  XLSX.writeFile(wb, `行事担当表_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.xlsx`);
+}
+</script>
+</body>
+</html>
